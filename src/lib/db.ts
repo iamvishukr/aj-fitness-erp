@@ -1,5 +1,6 @@
 import "server-only";
 import bcrypt from "bcryptjs";
+import { createHash } from "crypto";
 
 /**
  * Database layer.
@@ -157,24 +158,60 @@ async function init(): Promise<Driver> {
   return drv;
 }
 
+/**
+ * Admin login from env: ADMIN_EMAIL + ADMIN_PASSWORD_HASH (bcrypt, preferred) or ADMIN_PASSWORD.
+ * - First run: creates the admin account.
+ * - Later: applied to the existing admin ONLY when these env values change (tracked by a fingerprint),
+ *   so a password changed inside the app is never overwritten by a routine redeploy.
+ *   Changing the env values + redeploying is also the "forgot password" recovery path.
+ */
+async function syncAdminFromEnv(d: Driver) {
+  const envEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase();
+  const envHash = process.env.ADMIN_PASSWORD_HASH?.trim() || null;
+  const envPassword = envHash ? null : process.env.ADMIN_PASSWORD || null;
+  const fingerprint =
+    envEmail && (envHash || envPassword)
+      ? createHash("sha256").update(`${envEmail}|${envHash ?? envPassword}`).digest("hex")
+      : null;
+  const hashFor = async () => envHash ?? (await bcrypt.hash(envPassword ?? "admin123", 10));
+  const saveFp = async () => {
+    if (fingerprint)
+      await d.query(
+        "INSERT INTO settings (key, value) VALUES ('admin_env_fp',$1) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value",
+        [fingerprint],
+      );
+  };
+
+  const { rows } = await d.query<{ id: number }>("SELECT id FROM admins ORDER BY id LIMIT 1");
+  if (rows.length === 0) {
+    if (!fingerprint) {
+      await d.query("INSERT INTO settings (key, value) VALUES ('default_password','1') ON CONFLICT (key) DO NOTHING");
+    }
+    await d.query("INSERT INTO admins (name, email, password_hash) VALUES ($1,$2,$3) ON CONFLICT (email) DO NOTHING", [
+      process.env.ADMIN_NAME || "Admin",
+      envEmail || "admin@ajfitness.local",
+      await hashFor(),
+    ]);
+    await saveFp();
+    return;
+  }
+  if (!fingerprint) return;
+  const cur = await d.query<{ value: string }>("SELECT value FROM settings WHERE key='admin_env_fp'");
+  if (cur.rows[0]?.value === fingerprint) return;
+  // Env credentials changed → apply to the main admin and sign out every device.
+  await d.query("UPDATE admins SET email=$1, password_hash=$2, token_version=token_version+1 WHERE id=$3", [
+    envEmail,
+    await hashFor(),
+    rows[0].id,
+  ]);
+  await d.query("DELETE FROM settings WHERE key='default_password'");
+  await saveFp();
+}
+
 async function setup(d: Driver) {
   await d.exec(SCHEMA);
 
-  // First run: create the admin account from env (or a default to change immediately)
-  const { rows } = await d.query<{ n: number }>("SELECT count(*)::int AS n FROM admins");
-  if (rows[0].n === 0) {
-    const email = (process.env.ADMIN_EMAIL || "admin@ajfitness.local").toLowerCase();
-    const password = process.env.ADMIN_PASSWORD || "admin123";
-    if (!process.env.ADMIN_PASSWORD) {
-      await d.query("INSERT INTO settings (key, value) VALUES ('default_password','1') ON CONFLICT (key) DO NOTHING");
-    }
-    const hash = await bcrypt.hash(password, 10);
-    await d.query("INSERT INTO admins (name, email, password_hash) VALUES ($1,$2,$3) ON CONFLICT (email) DO NOTHING", [
-      process.env.ADMIN_NAME || "Admin",
-      email,
-      hash,
-    ]);
-  }
+  await syncAdminFromEnv(d);
   const plans = await d.query<{ n: number }>("SELECT count(*)::int AS n FROM plans");
   if (plans.rows[0].n === 0) {
     // AJ Fitness price list (calendar months)

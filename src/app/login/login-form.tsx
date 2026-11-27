@@ -17,7 +17,7 @@ export function LoginForm() {
       )}
       <div>
         <label htmlFor="email" className="label">Email</label>
-        <input id="email" name="email" type="email" autoComplete="username" required className="input" placeholder="admin@ajfitness.local" />
+        <input id="email" name="email" type="email" autoComplete="username" required className="input" placeholder="admin@ajfitness.com" />
       </div>
       <div>
         <label htmlFor="password" className="label">Password</label>
