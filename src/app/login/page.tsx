@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { getAdmin } from "@/lib/auth";
-import { getGymName } from "@/lib/data";
+import { getGymInfo } from "@/lib/data";
+import { Wordmark } from "@/components/wordmark";
 import { LoginForm } from "./login-form";
 
 export const dynamic = "force-dynamic";
@@ -8,15 +9,19 @@ export const metadata = { title: "Sign in" };
 
 export default async function LoginPage() {
   if (await getAdmin()) redirect("/");
-  const gym = await getGymName();
+  const gym = await getGymInfo();
   return (
     <main className="min-h-dvh flex flex-col justify-center px-6 py-10 mx-auto max-w-sm">
       <div className="mb-10">
-        <div className="size-14 rounded-2xl bg-accent grid place-items-center mb-6">
-          <span className="text-[22px] font-black tracking-tight text-[#0b0d10]">AJ</span>
-        </div>
-        <h1 className="text-3xl font-bold tracking-tight">{gym}</h1>
-        <p className="text-muted mt-1.5">Admin sign in</p>
+        <Wordmark size={40} />
+        {(gym.address || gym.phone) && (
+          <p className="text-[13px] text-muted mt-4 leading-relaxed">
+            {gym.address}
+            {gym.address && gym.phone && <br />}
+            {gym.phone && <span className="tnum">📞 {gym.phone}</span>}
+          </p>
+        )}
+        <p className="text-ink font-semibold mt-6">Admin sign in</p>
       </div>
       <LoginForm />
     </main>

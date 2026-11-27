@@ -5,7 +5,7 @@ import { checkIn, deleteMembership, deletePayment, extendMembership, undoCheckIn
 import { ExtendForm } from "@/components/forms";
 import {
   getAttendanceStats,
-  getGymName,
+  getGymInfo,
   getMember,
   getMemberSummary,
   getMemberships,
@@ -44,7 +44,7 @@ export default async function MemberPage({
     getPaymentsForMember(id),
     getAttendanceStats(id),
     getRecentVisits(id, 30),
-    getGymName(),
+    getGymInfo(),
   ]);
   if (!m || !s) notFound();
   const today = todayISO();
@@ -213,7 +213,7 @@ export default async function MemberPage({
         </div>
       </section>
 
-      {(m.health_notes || m.address || m.emergency_contact || m.notes || m.height_cm || m.weight_kg) && (
+      {(m.health_notes || m.email || m.address || m.emergency_contact || m.notes || m.height_cm || m.weight_kg) && (
         <section className="card p-4 space-y-2.5 text-sm">
           <h2 className="section-title mb-1">Details</h2>
           {m.health_notes && (
@@ -225,6 +225,7 @@ export default async function MemberPage({
           {(m.height_cm || m.weight_kg) && (
             <Row k="Body" v={[m.height_cm && `${m.height_cm} cm`, m.weight_kg && `${Number(m.weight_kg)} kg`].filter(Boolean).join(" · ")} />
           )}
+          {m.email && <Row k="Email" v={m.email} />}
           {m.address && <Row k="Address" v={m.address} />}
           {m.emergency_contact && <Row k="Emergency" v={m.emergency_contact} />}
           {m.notes && <Row k="Notes" v={m.notes} />}

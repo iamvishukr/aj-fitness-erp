@@ -27,35 +27,44 @@ export function telLink(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }
 
-type Ctx = { gym: string; name: string; endDate: string | null; daysLeft: number | null; due: number; plan?: string | null };
+export type Gym = { name: string; address?: string; phone?: string };
+const sig = (g: Gym) =>
+  `\n\n— ${g.name}${g.address ? `, ${g.address}` : ""}${g.phone ? `\n📞 ${g.phone}` : ""}`;
+
+type Ctx = { gym: Gym; name: string; endDate: string | null; daysLeft: number | null; due: number; plan?: string | null };
 
 export function reminderMessage(c: Ctx): string {
+  return reminderBody(c) + sig(c.gym);
+}
+
+function reminderBody(c: Ctx): string {
+  const gymName = c.gym.name;
   const first = c.name.split(" ")[0];
   if (c.daysLeft === null || !c.endDate) {
-    return `Hi ${first}, this is ${c.gym}. We'd love to see you back! Reply to know our current membership plans. 💪`;
+    return `Hi ${first}, this is ${gymName}. We'd love to see you back! Reply to know our current membership plans. 💪`;
   }
   const dueLine = c.due > 0 ? ` You also have a pending balance of ${rupees(c.due)}.` : "";
   if (c.daysLeft < 0) {
-    return `Hi ${first}, your ${c.gym} membership expired on ${fmtDate(c.endDate)}.${dueLine} Renew today to continue your training. 💪`;
+    return `Hi ${first}, your ${gymName} membership expired on ${fmtDate(c.endDate)}.${dueLine} Renew today to continue your training. 💪`;
   }
   if (c.daysLeft === 0) {
-    return `Hi ${first}, your ${c.gym} membership expires today (${fmtDate(c.endDate)}).${dueLine} Please renew to avoid a break in your workouts. 💪`;
+    return `Hi ${first}, your ${gymName} membership expires today (${fmtDate(c.endDate)}).${dueLine} Please renew to avoid a break in your workouts. 💪`;
   }
-  return `Hi ${first}, a reminder from ${c.gym}: your membership${c.plan ? ` (${c.plan})` : ""} expires on ${fmtDate(c.endDate)} — ${c.daysLeft} day${c.daysLeft === 1 ? "" : "s"} left.${dueLine} Renew early to keep going! 💪`;
+  return `Hi ${first}, a reminder from ${gymName}: your membership${c.plan ? ` (${c.plan})` : ""} expires on ${fmtDate(c.endDate)} — ${c.daysLeft} day${c.daysLeft === 1 ? "" : "s"} left.${dueLine} Renew early to keep going! 💪`;
 }
 
-export function dueMessage(gym: string, name: string, due: number): string {
-  return `Hi ${name.split(" ")[0]}, this is a gentle reminder from ${gym} that ${rupees(due)} is pending on your membership. You can pay at the front desk or via UPI. Thank you!`;
+export function dueMessage(gym: Gym, name: string, due: number): string {
+  return `Hi ${name.split(" ")[0]}, this is a gentle reminder from ${gym.name} that ${rupees(due)} is pending on your membership. You can pay at the front desk or via UPI. Thank you!${sig(gym)}`;
 }
 
-export function receiptMessage(gym: string, name: string, amount: number, date: string, endDate: string | null): string {
-  return `Hi ${name.split(" ")[0]}, we received ${rupees(amount)} on ${fmtDate(date)} at ${gym}.${
+export function receiptMessage(gym: Gym, name: string, amount: number, date: string, endDate: string | null): string {
+  return `Hi ${name.split(" ")[0]}, we received ${rupees(amount)} on ${fmtDate(date)} at ${gym.name}.${
     endDate ? ` Your membership is valid till ${fmtDate(endDate)}.` : ""
-  } Thank you! 🙏`;
+  } Thank you! 🙏${sig(gym)}`;
 }
 
-export function birthdayMessage(gym: string, name: string): string {
-  return `Happy Birthday ${name.split(" ")[0]}! 🎉 Wishing you a strong and healthy year ahead. — Team ${gym}`;
+export function birthdayMessage(gym: Gym, name: string): string {
+  return `Happy Birthday ${name.split(" ")[0]}! 🎉 Wishing you a strong and healthy year ahead. — Team ${gym.name}`;
 }
 
 /** Digits to search with: "+91 98111" → "98111", "0981" → "981". Empty if the query isn't a number. */

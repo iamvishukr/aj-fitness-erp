@@ -14,7 +14,7 @@ import {
   recordFailure,
   requireAdmin,
 } from "@/lib/auth";
-import { addDays, todayISO } from "@/lib/dates";
+import { planEndDate, todayISO } from "@/lib/dates";
 import { normalizePhone } from "@/lib/contact";
 
 export type FormState = { error?: string; ok?: string } | undefined;
@@ -110,18 +110,21 @@ export async function updateProfile(_: FormState, fd: FormData): Promise<FormSta
   const parsed = z
     .object({
       gym_name: z.string().trim().min(1, "Required").max(80),
+      gym_address: z.string().trim().max(200).default(""),
+      gym_phone: z.string().trim().max(20).default(""),
       name: z.string().trim().min(1, "Required").max(80),
       email: z.string().trim().toLowerCase().pipe(z.email("Invalid email")),
     })
     .safeParse(Object.fromEntries(fd));
   if (!parsed.success) return { error: firstError(parsed.error) };
-  const { gym_name, name, email } = parsed.data;
+  const { gym_name, gym_address, gym_phone, name, email } = parsed.data;
   const clash = await one("SELECT id FROM admins WHERE email=$1 AND id<>$2", [email, admin.id]);
   if (clash) return { error: "That email is already used by another admin." };
   await query("UPDATE admins SET name=$1, email=$2 WHERE id=$3", [name, email, admin.id]);
   await query(
-    "INSERT INTO settings (key,value) VALUES ('gym_name',$1) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value",
-    [gym_name],
+    `INSERT INTO settings (key,value) VALUES ('gym_name',$1), ('gym_address',$2), ('gym_phone',$3)
+     ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`,
+    [gym_name, gym_address, gym_phone],
   );
   refreshAll();
   return { ok: "Saved." };
@@ -139,6 +142,13 @@ const memberSchema = z.object({
   dob: optDate,
   address: optStr,
   emergency_contact: optStr,
+  email: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .optional()
+    .transform((v) => (v ? v : null))
+    .pipe(z.email("Enter a valid email").nullable()),
   height_cm: optNum(50, 250, "Height").transform((v) => (v === null ? null : Math.round(v))),
   weight_kg: optNum(10, 300, "Weight").transform((v) => (v === null ? null : Math.round(v * 10) / 10)),
   health_notes: optStr,
@@ -156,13 +166,13 @@ const subscriptionSchema = z.object({
 });
 
 async function addSubscription(memberId: number, s: z.infer<typeof subscriptionSchema>) {
-  const plan = await one<{ id: number; name: string; duration_days: number }>(
-    "SELECT id, name, duration_days FROM plans WHERE id=$1",
+  const plan = await one<{ id: number; name: string; duration_days: number; duration_months: number | null }>(
+    "SELECT id, name, duration_days, duration_months FROM plans WHERE id=$1",
     [s.plan_id],
   );
   if (!plan) throw new Error("Plan not found");
   if (s.discount > s.fee) throw new Error("Discount can't be more than the fee");
-  const end = addDays(s.start_date, plan.duration_days - 1);
+  const end = planEndDate(s.start_date, plan);
   const ms = await one<{ id: number }>(
     `INSERT INTO memberships (member_id, plan_id, plan_name, start_date, end_date, fee, discount)
      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
@@ -191,9 +201,9 @@ export async function createMember(_: FormState, fd: FormData): Promise<FormStat
   }
   const d = m.data;
   const row = await one<{ id: number }>(
-    `INSERT INTO members (name, phone, gender, dob, address, emergency_contact, height_cm, weight_kg, health_notes, notes, joined_on)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING id`,
-    [d.name, d.phone, d.gender, d.dob, d.address, d.emergency_contact, d.height_cm, d.weight_kg, d.health_notes, d.notes, d.joined_on],
+    `INSERT INTO members (name, phone, gender, dob, address, emergency_contact, height_cm, weight_kg, health_notes, notes, joined_on, email)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+    [d.name, d.phone, d.gender, d.dob, d.address, d.emergency_contact, d.height_cm, d.weight_kg, d.health_notes, d.notes, d.joined_on, d.email],
   );
   try {
     await addSubscription(row!.id, s.data);
@@ -212,8 +222,8 @@ export async function updateMember(id: number, _: FormState, fd: FormData): Prom
   const d = m.data;
   await query(
     `UPDATE members SET name=$1, phone=$2, gender=$3, dob=$4, address=$5, emergency_contact=$6, height_cm=$7,
-     weight_kg=$8, health_notes=$9, notes=$10, joined_on=$11 WHERE id=$12`,
-    [d.name, d.phone, d.gender, d.dob, d.address, d.emergency_contact, d.height_cm, d.weight_kg, d.health_notes, d.notes, d.joined_on, id],
+     weight_kg=$8, health_notes=$9, notes=$10, joined_on=$11, email=$12 WHERE id=$13`,
+    [d.name, d.phone, d.gender, d.dob, d.address, d.emergency_contact, d.height_cm, d.weight_kg, d.health_notes, d.notes, d.joined_on, d.email, id],
   );
   refreshAll();
   redirect(`/members/${id}`);
@@ -316,19 +326,29 @@ export async function undoCheckIn(memberId: number) {
 
 /* ---------------- Plans ---------------- */
 
-const planSchema = z.object({
-  name: z.string().trim().min(1, "Enter a name").max(60),
-  duration_days: z.coerce.number().int().min(1, "At least 1 day").max(3650),
-  price: money,
-});
+const planSchema = z
+  .object({
+    name: z.string().trim().min(1, "Enter a name").max(60),
+    length: z.coerce.number().int("Whole numbers only").min(1, "At least 1").max(3650),
+    unit: z.enum(["months", "days"]).default("months"),
+    price: money,
+  })
+  .refine((p) => p.unit === "days" || p.length <= 60, { message: "Max 60 months", path: ["length"] })
+  .transform((p) => ({
+    name: p.name,
+    price: p.price,
+    duration_months: p.unit === "months" ? p.length : null,
+    duration_days: p.unit === "months" ? p.length * 30 : p.length,
+  }));
 
 export async function createPlan(_: FormState, fd: FormData): Promise<FormState> {
   await requireAdmin();
   const p = planSchema.safeParse(Object.fromEntries(fd));
   if (!p.success) return { error: firstError(p.error) };
-  await query("INSERT INTO plans (name, duration_days, price) VALUES ($1,$2,$3)", [
+  await query("INSERT INTO plans (name, duration_days, duration_months, price) VALUES ($1,$2,$3,$4)", [
     p.data.name,
     p.data.duration_days,
+    p.data.duration_months,
     p.data.price,
   ]);
   refreshAll();
@@ -339,9 +359,10 @@ export async function updatePlan(id: number, _: FormState, fd: FormData): Promis
   await requireAdmin();
   const p = planSchema.safeParse(Object.fromEntries(fd));
   if (!p.success) return { error: firstError(p.error) };
-  await query("UPDATE plans SET name=$1, duration_days=$2, price=$3 WHERE id=$4", [
+  await query("UPDATE plans SET name=$1, duration_days=$2, duration_months=$3, price=$4 WHERE id=$5", [
     p.data.name,
     p.data.duration_days,
+    p.data.duration_months,
     p.data.price,
     id,
   ]);

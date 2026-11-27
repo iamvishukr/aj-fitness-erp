@@ -6,20 +6,33 @@ import { PageHeader } from "@/components/ui";
 
 export const metadata = { title: "Plans" };
 
-function Fields({ d }: { d?: { name: string; duration_days: number; price: number } }) {
+function Fields({ d }: { d?: { name: string; duration_days: number; duration_months: number | null; price: number } }) {
+  const unit = d && !d.duration_months ? "days" : "months";
+  const length = d ? (d.duration_months ?? d.duration_days) : undefined;
   return (
-    <div className="grid grid-cols-[1fr_80px_100px] gap-2">
-      <div>
-        <label className="label">Name</label>
-        <input name="name" required defaultValue={d?.name} className="input" placeholder="Monthly" />
+    <div className="space-y-2">
+      <div className="grid grid-cols-[1fr_110px] gap-2">
+        <div>
+          <label className="label">Plan name</label>
+          <input name="name" required defaultValue={d?.name} className="input" placeholder="One Month" />
+        </div>
+        <div>
+          <label className="label">Price ₹</label>
+          <input name="price" type="number" inputMode="numeric" min={0} required defaultValue={d?.price} className="input tnum" placeholder="2000" />
+        </div>
       </div>
-      <div>
-        <label className="label">Days</label>
-        <input name="duration_days" type="number" inputMode="numeric" min={1} required defaultValue={d?.duration_days} className="input tnum" placeholder="30" />
-      </div>
-      <div>
-        <label className="label">Price ₹</label>
-        <input name="price" type="number" inputMode="numeric" min={0} required defaultValue={d?.price} className="input tnum" placeholder="1000" />
+      <div className="grid grid-cols-[90px_1fr] gap-2">
+        <div>
+          <label className="label">Length</label>
+          <input name="length" type="number" inputMode="numeric" min={1} required defaultValue={length} className="input tnum" placeholder="1" />
+        </div>
+        <div>
+          <label className="label">Unit</label>
+          <select name="unit" defaultValue={unit} className="input">
+            <option value="months">Months (calendar)</option>
+            <option value="days">Days</option>
+          </select>
+        </div>
       </div>
     </div>
   );

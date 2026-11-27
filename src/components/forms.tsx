@@ -3,8 +3,9 @@
 import { startTransition, useActionState, useEffect, useMemo, useRef, useState } from "react";
 import type { FormState } from "@/app/actions";
 import { SubmitButton } from "./client";
+import { durationLabel, planEndDate } from "@/lib/dates";
 
-type Plan = { id: number; name: string; duration_days: number; price: number };
+type Plan = { id: number; name: string; duration_days: number; duration_months: number | null; price: number };
 type Action = (state: FormState, fd: FormData) => Promise<FormState>;
 
 /** Like useActionState, but submits via onSubmit so React doesn't reset the form (keeps input on validation errors). */
@@ -39,11 +40,6 @@ export function ErrorBox({ state }: { state: FormState }) {
   return null;
 }
 
-function addDays(iso: string, n: number) {
-  const d = new Date(iso + "T00:00:00Z");
-  d.setUTCDate(d.getUTCDate() + n);
-  return d.toISOString().slice(0, 10);
-}
 const fmt = (iso: string) =>
   iso ? new Date(iso + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }) : "—";
 const inr = (n: number) => "₹" + n.toLocaleString("en-IN");
@@ -99,7 +95,7 @@ export function SubscriptionFields({
   const [paid, setPaid] = useState<number>(plan?.price ?? 0);
   const [paidTouched, setPaidTouched] = useState(false);
   const total = Math.max(0, fee - discount);
-  const end = useMemo(() => (plan && start ? addDays(start, plan.duration_days - 1) : ""), [plan, start]);
+  const end = useMemo(() => (plan && start ? planEndDate(start, plan) : ""), [plan, start]);
 
   if (plans.length === 0)
     return <p className="text-sm text-warn">No active plans. Add one under More → Plans first.</p>;
@@ -125,7 +121,7 @@ export function SubscriptionFields({
             >
               <div className="font-semibold text-[15px]">{p.name}</div>
               <div className="text-[12px] text-muted tnum">
-                {p.duration_days} days · {inr(p.price)}
+                {durationLabel(p)} · {inr(p.price)}
               </div>
             </button>
           ))}
@@ -212,6 +208,7 @@ type MemberDefaults = Partial<{
   dob: string | null;
   address: string | null;
   emergency_contact: string | null;
+  email: string | null;
   height_cm: number | null;
   weight_kg: string | number | null;
   health_notes: string | null;
@@ -249,6 +246,10 @@ export function MemberForm({
           <input id="phone" name="phone" required defaultValue={d.phone} className="input tnum" type="tel" inputMode="tel" placeholder="98765 43210" />
         </div>
         <div>
+          <label className="label" htmlFor="email">Email (Gmail)</label>
+          <input id="email" name="email" type="email" inputMode="email" autoComplete="off" defaultValue={d.email ?? ""} className="input" placeholder="Optional" />
+        </div>
+        <div>
           <span className="label">Gender</span>
           <input type="hidden" name="gender" value={gender} />
           <div className="grid grid-cols-3 gap-2">
@@ -278,7 +279,7 @@ export function MemberForm({
         </div>
 
         {!more ? (
-          <button type="button" onClick={() => setMore(true)} className="text-sm font-semibold text-accent">
+          <button type="button" onClick={() => setMore(true)} className="text-sm font-semibold text-accent-soft">
             + Address, emergency contact, health details
           </button>
         ) : (
@@ -322,7 +323,7 @@ export function MemberForm({
 
       {mode === "create" && (
         <label className="flex items-center gap-2 text-sm text-muted">
-          <input type="checkbox" name="allow_duplicate" value="1" className="size-4 accent-[#d4ff3a]" />
+          <input type="checkbox" name="allow_duplicate" value="1" className="size-4 accent-[#e3262e]" />
           Same phone is OK (e.g. family members)
         </label>
       )}

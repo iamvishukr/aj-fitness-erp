@@ -1,5 +1,6 @@
 import { getAdmin } from "@/lib/auth";
 import { getMemberSummaries } from "@/lib/data";
+import { query } from "@/lib/db";
 import { todayISO } from "@/lib/dates";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +15,13 @@ function csv(v: unknown) {
 export async function GET() {
   if (!(await getAdmin())) return new Response("Unauthorized", { status: 401 });
   const rows = await getMemberSummaries();
-  const header = ["ID", "Name", "Phone", "Gender", "DOB", "Joined", "Plan", "Start", "End", "Status", "Days left", "Due", "Last visit"];
+  const emails = new Map(
+    (await query<{ id: number; email: string | null }>("SELECT id, email FROM members")).map((r) => [r.id, r.email]),
+  );
+  const header = ["ID", "Name", "Phone", "Email", "Gender", "DOB", "Joined", "Plan", "Start", "End", "Status", "Days left", "Due", "Last visit"];
   const lines = [header.join(",")].concat(
     rows.map((m) =>
-      [m.id, m.name, m.phone, m.gender, m.dob, m.joined_on, m.plan_name, m.start_date, m.end_date, m.status, m.daysLeft, m.due, m.last_visit]
+      [m.id, m.name, m.phone, emails.get(m.id), m.gender, m.dob, m.joined_on, m.plan_name, m.start_date, m.end_date, m.status, m.daysLeft, m.due, m.last_visit]
         .map(csv)
         .join(","),
     ),

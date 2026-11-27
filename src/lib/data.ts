@@ -75,6 +75,7 @@ export type MemberFull = {
   weight_kg: string | null;
   health_notes: string | null;
   notes: string | null;
+  email: string | null;
   joined_on: string;
 };
 
@@ -144,10 +145,17 @@ export function getRecentVisits(memberId: number, limit = 14) {
   ]);
 }
 
-export type Plan = { id: number; name: string; duration_days: number; price: number; active: boolean };
+export type Plan = {
+  id: number;
+  name: string;
+  duration_days: number;
+  duration_months: number | null;
+  price: number;
+  active: boolean;
+};
 export function getPlans(activeOnly = false) {
   return query<Plan>(
-    `SELECT id, name, duration_days, price, active FROM plans ${activeOnly ? "WHERE active" : ""} ORDER BY duration_days, price`,
+    `SELECT id, name, duration_days, duration_months, price, active FROM plans ${activeOnly ? "WHERE active" : ""} ORDER BY duration_days, price`,
   );
 }
 
@@ -158,6 +166,15 @@ export async function getSetting(key: string, fallback = ""): Promise<string> {
 
 export function getGymName() {
   return getSetting("gym_name", "AJ Fitness");
+}
+
+export type GymInfo = { name: string; address: string; phone: string };
+export async function getGymInfo(): Promise<GymInfo> {
+  const rows = await query<{ key: string; value: string }>(
+    "SELECT key, value FROM settings WHERE key IN ('gym_name','gym_address','gym_phone')",
+  );
+  const m = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+  return { name: m.gym_name || "AJ Fitness", address: m.gym_address || "", phone: m.gym_phone || "" };
 }
 
 export async function getRevenue(from: string, to: string) {

@@ -1,6 +1,6 @@
 import "server-only";
 import { one, query } from "./db";
-import { addDays, todayISO } from "./dates";
+import { addDays, addMonths, todayISO } from "./dates";
 
 const NAMES = [
   "Rahul Sharma", "Priya Patel", "Amit Verma", "Sneha Reddy", "Vikram Singh", "Ananya Iyer", "Rohan Gupta",
@@ -10,8 +10,8 @@ const NAMES = [
 ];
 
 export async function seedDemo() {
-  const plans = await query<{ id: number; name: string; duration_days: number; price: number }>(
-    "SELECT id, name, duration_days, price FROM plans WHERE active ORDER BY duration_days",
+  const plans = await query<{ id: number; name: string; duration_days: number; duration_months: number | null; price: number }>(
+    "SELECT id, name, duration_days, duration_months, price FROM plans WHERE active ORDER BY duration_days",
   );
   if (!plans.length) return;
   const today = todayISO();
@@ -22,7 +22,9 @@ export async function seedDemo() {
   for (let i = 0; i < NAMES.length; i++) {
     const plan = plans[i % plans.length];
     const end = addDays(today, endOffsets[i]);
-    const start = addDays(end, -(plan.duration_days - 1));
+    const start = plan.duration_months
+      ? addMonths(addDays(end, 1), -plan.duration_months)
+      : addDays(end, -(plan.duration_days - 1));
     const joined = addDays(start, -Math.floor(rand() * 200));
     const dob = i === 4 ? `199${i % 10}-${today.slice(5)}` : `19${85 + (i % 15)}-${String(1 + (i % 12)).padStart(2, "0")}-${String(1 + ((i * 7) % 28)).padStart(2, "0")}`;
     const phone = "9" + String(800000000 + i * 1234567).slice(0, 9);

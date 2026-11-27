@@ -7,8 +7,9 @@
   --color-line: #262b33;
   --color-ink: #f2f4f7;
   --color-muted: #8b93a1;
-  --color-accent: #d4ff3a;
-  --color-accent-ink: #0b0d10;
+  --color-accent: #e3262e;       /* AJ Fitness red (buttons, brand marks) */
+  --color-accent-ink: #ffffff;
+  --color-accent-soft: #f45f65;  /* readable red for text on dark */
   --color-ok: #34d399;
   --color-warn: #fbbf24;
   --color-bad: #f87171;
@@ -21,6 +22,10 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-tap-highlight-color: transparent;
+}
+
+@theme inline {
+  --font-brand: var(--font-archivo), "Arial Black", "Helvetica Neue", Arial, sans-serif;
 }
 
 @utility card { @apply rounded-2xl bg-surface border border-line; }

@@ -43,3 +43,26 @@ export function relativeDays(days: number): string {
   if (days === -1) return "yesterday";
   return days > 0 ? `in ${days} days` : `${-days} days ago`;
 }
+
+/** Adds calendar months, clamping to the month's last day (31 Jan + 1 month → 28/29 Feb). */
+export function addMonths(iso: string, months: number): string {
+  const [y, m, d] = iso.split("-").map(Number);
+  const target = new Date(Date.UTC(y, m - 1 + months, 1));
+  const lastDay = new Date(Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0)).getUTCDate();
+  target.setUTCDate(Math.min(d, lastDay));
+  return target.toISOString().slice(0, 10);
+}
+
+export type PlanLength = { duration_days: number; duration_months: number | null };
+
+/** Last valid day of a plan starting on `start` (inclusive). 1 month from 27 Nov → 26 Dec. */
+export function planEndDate(start: string, plan: PlanLength): string {
+  if (plan.duration_months) return addDays(addMonths(start, plan.duration_months), -1);
+  return addDays(start, plan.duration_days - 1);
+}
+
+export function durationLabel(plan: PlanLength): string {
+  const m = plan.duration_months;
+  if (m) return m === 12 ? "1 year" : m % 12 === 0 ? `${m / 12} years` : `${m} month${m === 1 ? "" : "s"}`;
+  return `${plan.duration_days} day${plan.duration_days === 1 ? "" : "s"}`;
+}

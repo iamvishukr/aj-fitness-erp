@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/auth";
 import {
   EXPIRING_WINDOW,
-  getGymName,
+  getGymInfo,
   getMemberSummaries,
   getMonthlyRevenue,
   getRevenue,
@@ -17,6 +17,7 @@ import { loadDemoData } from "@/app/actions";
 import { SubmitButton } from "@/components/client";
 import { Tabs } from "@/components/tabs";
 import { Avatar, Icon } from "@/components/ui";
+import { Wordmark } from "@/components/wordmark";
 
 export const metadata = { title: "Dashboard" };
 
@@ -30,7 +31,7 @@ export default async function Dashboard() {
   const today = todayISO();
   const prevMonthEnd = addDays(monthStart(today), -1);
   const [gym, members, monthRev, todayRev, lastMonthRev, chart, checkins] = await Promise.all([
-    getGymName(),
+    getGymInfo(),
     getMemberSummaries(),
     getRevenue(monthStart(today), today),
     getRevenue(today, today),
@@ -74,17 +75,17 @@ export default async function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <header className="flex items-start justify-between">
-        <div>
-          <p className="text-sm text-muted">{fmtDate(today)}</p>
-          <h1 className="text-2xl font-bold mt-0.5">
-            {greeting()}, {admin.name.split(" ")[0]}
-          </h1>
-          <p className="text-sm text-muted">{gym}</p>
+      <header>
+        <div className="flex items-center justify-between">
+          <Wordmark size={20} />
+          <Link href="/members" className="grid place-items-center size-11 rounded-full bg-surface border border-line" aria-label="Search members">
+            {Icon.search}
+          </Link>
         </div>
-        <Link href="/members" className="grid place-items-center size-11 rounded-full bg-surface border border-line" aria-label="Search members">
-          {Icon.search}
-        </Link>
+        <p className="text-sm text-muted mt-4">{fmtDate(today)}</p>
+        <h1 className="text-2xl font-bold mt-0.5">
+          {greeting()}, {admin.name.split(" ")[0]}
+        </h1>
       </header>
 
       {defaultPassword && (
@@ -117,7 +118,7 @@ export default async function Dashboard() {
               )}
             </div>
           </div>
-          <Link href="/payments" className="text-[13px] font-semibold text-accent">
+          <Link href="/payments" className="text-[13px] font-semibold text-accent-soft">
             Details
           </Link>
         </div>
@@ -137,7 +138,7 @@ export default async function Dashboard() {
       <section>
         <div className="flex items-center justify-between mb-3">
           <h2 className="section-title">Membership expiry</h2>
-          <Link href="/members?f=expiring" className="text-[13px] font-semibold text-accent">
+          <Link href="/members?f=expiring" className="text-[13px] font-semibold text-accent-soft">
             See all
           </Link>
         </div>
@@ -155,7 +156,7 @@ export default async function Dashboard() {
                     <MemberRow key={m.id} m={m} waHref={remind(m)} />
                   ))}
                   {t.items.length > 15 && (
-                    <Link href="/members?f=expiring" className="block p-3 text-center text-sm text-accent font-semibold">
+                    <Link href="/members?f=expiring" className="block p-3 text-center text-sm text-accent-soft font-semibold">
                       +{t.items.length - 15} more
                     </Link>
                   )}
@@ -209,7 +210,7 @@ export default async function Dashboard() {
               <div className="text-sm text-muted mt-1">Tap here or the + button below.</div>
             </Link>
             <form action={loadDemoData}>
-              <SubmitButton className="text-sm font-semibold text-accent" pendingText="Loading…">
+              <SubmitButton className="text-sm font-semibold text-accent-soft" pendingText="Loading…">
                 or load demo members to explore
               </SubmitButton>
             </form>

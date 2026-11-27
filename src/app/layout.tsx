@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
 import "./globals.css";
+
+const brand = localFont({ src: "./fonts/ArchivoBlack.woff2", variable: "--font-archivo", display: "swap" });
 
 export const metadata: Metadata = {
   title: { default: "AJ Fitness Admin", template: "%s · AJ Fitness" },
@@ -18,7 +21,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className="h-full antialiased">
+    <html lang="en" className={`${brand.variable} h-full antialiased`}>
       <body className="min-h-full">{children}</body>
     </html>
   );

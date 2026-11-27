@@ -147,6 +147,8 @@ CREATE TABLE IF NOT EXISTS attendance (
 ALTER TABLE members ADD COLUMN IF NOT EXISTS is_demo BOOLEAN NOT NULL DEFAULT false;
 ALTER TABLE memberships ADD COLUMN IF NOT EXISTS extra_days INT NOT NULL DEFAULT 0;
 ALTER TABLE memberships ADD COLUMN IF NOT EXISTS extra_note TEXT;
+ALTER TABLE plans ADD COLUMN IF NOT EXISTS duration_months INT;
+ALTER TABLE members ADD COLUMN IF NOT EXISTS email TEXT;
 `;
 
 async function init(): Promise<Driver> {
@@ -175,14 +177,37 @@ async function setup(d: Driver) {
   }
   const plans = await d.query<{ n: number }>("SELECT count(*)::int AS n FROM plans");
   if (plans.rows[0].n === 0) {
+    // AJ Fitness price list (calendar months)
     await d.query(
-      `INSERT INTO plans (name, duration_days, price) VALUES
-       ('Monthly', 30, 1000), ('Quarterly', 90, 2700), ('Half-Yearly', 180, 5000), ('Yearly', 365, 9000)`,
+      `INSERT INTO plans (name, duration_days, duration_months, price) VALUES
+       ('One Month', 30, 1, 2000), ('3 Months', 90, 3, 4000), ('6 Months', 180, 6, 7000), ('Yearly', 365, 12, 10999)`,
     );
+    await d.query("INSERT INTO settings (key, value) VALUES ('plans_v2','1') ON CONFLICT (key) DO NOTHING");
+  }
+  // One-time upgrade of the original placeholder plans to the AJ Fitness price list.
+  const v2 = await d.query("SELECT 1 FROM settings WHERE key='plans_v2'");
+  if (v2.rows.length === 0) {
+    for (const [oldName, oldDays, oldPrice, name, months, price] of [
+      ["Monthly", 30, 1000, "One Month", 1, 2000],
+      ["Quarterly", 90, 2700, "3 Months", 3, 4000],
+      ["Half-Yearly", 180, 5000, "6 Months", 6, 7000],
+      ["Yearly", 365, 9000, "Yearly", 12, 10999],
+    ] as const) {
+      await d.query(
+        "UPDATE plans SET name=$1, duration_months=$2, price=$3 WHERE name=$4 AND duration_days=$5 AND price=$6",
+        [name, months, price, oldName, oldDays, oldPrice],
+      );
+    }
+    await d.query("INSERT INTO settings (key, value) VALUES ('plans_v2','1') ON CONFLICT (key) DO NOTHING");
   }
   await d.query(
-    `INSERT INTO settings (key, value) VALUES ('gym_name', $1) ON CONFLICT (key) DO NOTHING`,
-    [process.env.GYM_NAME || "AJ Fitness"],
+    `INSERT INTO settings (key, value) VALUES ('gym_name', $1), ('gym_address', $2), ('gym_phone', $3)
+     ON CONFLICT (key) DO NOTHING`,
+    [
+      process.env.GYM_NAME || "AJ Fitness",
+      process.env.GYM_ADDRESS || "Ashok Complex, Booty More, Ranchi",
+      process.env.GYM_PHONE || "8210604109",
+    ],
   );
 }
 

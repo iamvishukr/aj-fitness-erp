@@ -90,7 +90,7 @@ export default async function PaymentsPage({ searchParams }: { searchParams: Pro
           ))}
         </div>
       )}
-      <Link href="/members?f=dues" className="block text-center text-sm font-semibold text-accent mt-6">
+      <Link href="/members?f=dues" className="block text-center text-sm font-semibold text-accent-soft mt-6">
         View members with pending dues →
       </Link>
     </div>

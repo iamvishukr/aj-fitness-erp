@@ -1,6 +1,6 @@
 import { requireAdmin } from "@/lib/auth";
 import Link from "next/link";
-import { getGymName, getMemberSummaries, type MemberSummary } from "@/lib/data";
+import { getGymInfo, getMemberSummaries, type MemberSummary } from "@/lib/data";
 import { phoneQuery, reminderMessage, waLink } from "@/lib/contact";
 import { MemberRow } from "@/components/member-row";
 import { Empty, Icon, PageHeader } from "@/components/ui";
@@ -36,7 +36,7 @@ function apply(f: string, list: MemberSummary[]) {
 export default async function MembersPage({ searchParams }: { searchParams: Promise<{ q?: string; f?: string }> }) {
   await requireAdmin();
   const { q = "", f = "all" } = await searchParams;
-  const [all, gym] = await Promise.all([getMemberSummaries(), getGymName()]);
+  const [all, gym] = await Promise.all([getMemberSummaries(), getGymInfo()]);
   const needle = q.trim().toLowerCase();
   const digits = phoneQuery(needle);
   const searched = needle

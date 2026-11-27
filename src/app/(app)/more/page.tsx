@@ -2,7 +2,7 @@ import Link from "next/link";
 import { changePassword, logout, logoutEverywhere, removeDemoData, updateProfile } from "@/app/actions";
 import { one } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
-import { getGymName } from "@/lib/data";
+import { getGymInfo } from "@/lib/data";
 import { SimpleForm } from "@/components/forms";
 import { ConfirmForm } from "@/components/client";
 import { Icon, PageHeader } from "@/components/ui";
@@ -19,7 +19,7 @@ const links = [
 export default async function MorePage() {
   const [admin, gym, demo] = await Promise.all([
     requireAdmin(),
-    getGymName(),
+    getGymInfo(),
     one<{ n: number }>("SELECT count(*)::int AS n FROM members WHERE is_demo"),
   ]);
   return (
@@ -49,10 +49,18 @@ export default async function MorePage() {
 
       <section className="card p-4">
         <h2 className="section-title mb-3">Gym & profile</h2>
-        <SimpleForm action={updateProfile} submit="Save">
+        <SimpleForm action={updateProfile} submit="Save" resetOnSuccess={false}>
           <div>
             <label className="label" htmlFor="gym_name">Gym name</label>
-            <input id="gym_name" name="gym_name" defaultValue={gym} required className="input" />
+            <input id="gym_name" name="gym_name" defaultValue={gym.name} required className="input" />
+          </div>
+          <div>
+            <label className="label" htmlFor="gym_address">Gym address</label>
+            <input id="gym_address" name="gym_address" defaultValue={gym.address} className="input" />
+          </div>
+          <div>
+            <label className="label" htmlFor="gym_phone">Gym phone (shown in WhatsApp messages)</label>
+            <input id="gym_phone" name="gym_phone" type="tel" defaultValue={gym.phone} className="input tnum" />
           </div>
           <div>
             <label className="label" htmlFor="aname">Your name</label>

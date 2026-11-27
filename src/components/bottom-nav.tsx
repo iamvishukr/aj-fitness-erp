@@ -39,7 +39,7 @@ export function BottomNav() {
               <Link
                 href={it.href}
                 className={`flex flex-col items-center gap-1 pt-2.5 pb-1.5 text-[11px] font-medium ${
-                  isActive(it.href) ? "text-accent" : "text-muted"
+                  isActive(it.href) ? "text-accent-soft" : "text-muted"
                 }`}
               >
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
