@@ -12,6 +12,7 @@ Built with Next.js 16 (App Router, server actions), PostgreSQL and Tailwind CSS 
 - **Member profile**: call, WhatsApp reminder, renew (the new plan starts the day after the current one ends), record payment (cash/UPI/card/bank), a payment receipt you can send on WhatsApp, a 14-day attendance strip, one-tap check-in, and full membership and payment history.
 - **Freeze / extend**: add days to a membership (travel, illness, gym closed), with the reason shown in its history.
 - **Check-in warning**: shown when a member's plan has expired.
+- **Automatic WhatsApp reminders**: every morning (10–11 am IST), members get a WhatsApp message before expiry, after expiry and while dues are pending. Sent through WhatsApp's official Cloud API with approved templates. Setup steps are in the app under **More → WhatsApp reminders**. There's one message per member per day at most, a per-member opt-out and a full history.
 - **Payments**: month by month, with a split by payment mode.
 - **Plans**: add, edit or hide plans (Monthly, Quarterly, etc.).
 - **Export**: download the member list as a CSV for Excel or Google Sheets.

@@ -150,6 +150,18 @@ ALTER TABLE memberships ADD COLUMN IF NOT EXISTS extra_days INT NOT NULL DEFAULT
 ALTER TABLE memberships ADD COLUMN IF NOT EXISTS extra_note TEXT;
 ALTER TABLE plans ADD COLUMN IF NOT EXISTS duration_months INT;
 ALTER TABLE members ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE members ADD COLUMN IF NOT EXISTS auto_wa BOOLEAN NOT NULL DEFAULT true;
+CREATE TABLE IF NOT EXISTS reminder_log (
+  id SERIAL PRIMARY KEY,
+  member_id INT REFERENCES members(id) ON DELETE CASCADE,
+  kind TEXT NOT NULL,
+  ref TEXT NOT NULL,
+  status TEXT NOT NULL,
+  detail TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS reminder_log_lookup ON reminder_log(member_id, kind, ref, status);
+CREATE INDEX IF NOT EXISTS reminder_log_created ON reminder_log(created_at DESC);
 `;
 
 async function init(): Promise<Driver> {

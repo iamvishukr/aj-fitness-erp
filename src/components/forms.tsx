@@ -209,6 +209,7 @@ type MemberDefaults = Partial<{
   address: string | null;
   emergency_contact: string | null;
   email: string | null;
+  auto_wa: boolean;
   height_cm: number | null;
   weight_kg: string | number | null;
   health_notes: string | null;
@@ -245,6 +246,19 @@ export function MemberForm({
           <label className="label" htmlFor="phone">Mobile number *</label>
           <input id="phone" name="phone" required defaultValue={d.phone} className="input tnum" type="tel" inputMode="tel" placeholder="98765 43210" />
         </div>
+        <label className="flex items-start gap-2.5 text-sm">
+          <input
+            type="checkbox"
+            name="auto_wa"
+            value="1"
+            defaultChecked={d.auto_wa ?? true}
+            className="size-4 mt-0.5 accent-[#e3262e]"
+          />
+          <span>
+            Send automatic WhatsApp reminders
+            <span className="block text-[12px] text-muted">Expiry and payment reminders. Untick if the member doesn&apos;t want them.</span>
+          </span>
+        </label>
         <div>
           <label className="label" htmlFor="email">Email (Gmail)</label>
           <input id="email" name="email" type="email" inputMode="email" autoComplete="off" defaultValue={d.email ?? ""} className="input" placeholder="Optional" />

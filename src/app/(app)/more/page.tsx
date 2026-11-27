@@ -10,6 +10,7 @@ import { Icon, PageHeader } from "@/components/ui";
 export const metadata = { title: "More" };
 
 const links = [
+  { href: "/reminders", label: "WhatsApp reminders", sub: "Automatic expiry & dues messages" },
   { href: "/attendance", label: "Attendance & check-in", sub: "Mark today's visits" },
   { href: "/plans", label: "Membership plans", sub: "Durations and prices" },
   { href: "/members?f=dues", label: "Pending dues", sub: "Members who owe money" },

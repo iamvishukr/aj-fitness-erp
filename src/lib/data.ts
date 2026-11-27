@@ -76,6 +76,7 @@ export type MemberFull = {
   health_notes: string | null;
   notes: string | null;
   email: string | null;
+  auto_wa: boolean;
   joined_on: string;
 };
 

@@ -99,8 +99,9 @@ export default async function MemberPage({
             {m.gender ? ` · ${m.gender}` : ""}
             {years !== null ? ` · ${years} yrs` : ""}
           </div>
-          <div className="mt-1.5">
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
             <StatusBadge status={s.status} />
+            {!m.auto_wa && <span className="chip bg-muted/15 text-muted">No auto reminders</span>}
           </div>
         </div>
       </section>

@@ -154,6 +154,10 @@ const memberSchema = z.object({
   health_notes: optStr,
   notes: optStr,
   joined_on: ISO,
+  auto_wa: z
+    .string()
+    .optional()
+    .transform((v) => v === "1"),
 });
 
 const subscriptionSchema = z.object({
@@ -201,9 +205,9 @@ export async function createMember(_: FormState, fd: FormData): Promise<FormStat
   }
   const d = m.data;
   const row = await one<{ id: number }>(
-    `INSERT INTO members (name, phone, gender, dob, address, emergency_contact, height_cm, weight_kg, health_notes, notes, joined_on, email)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
-    [d.name, d.phone, d.gender, d.dob, d.address, d.emergency_contact, d.height_cm, d.weight_kg, d.health_notes, d.notes, d.joined_on, d.email],
+    `INSERT INTO members (name, phone, gender, dob, address, emergency_contact, height_cm, weight_kg, health_notes, notes, joined_on, email, auto_wa)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+    [d.name, d.phone, d.gender, d.dob, d.address, d.emergency_contact, d.height_cm, d.weight_kg, d.health_notes, d.notes, d.joined_on, d.email, d.auto_wa],
   );
   try {
     await addSubscription(row!.id, s.data);
@@ -222,8 +226,8 @@ export async function updateMember(id: number, _: FormState, fd: FormData): Prom
   const d = m.data;
   await query(
     `UPDATE members SET name=$1, phone=$2, gender=$3, dob=$4, address=$5, emergency_contact=$6, height_cm=$7,
-     weight_kg=$8, health_notes=$9, notes=$10, joined_on=$11, email=$12 WHERE id=$13`,
-    [d.name, d.phone, d.gender, d.dob, d.address, d.emergency_contact, d.height_cm, d.weight_kg, d.health_notes, d.notes, d.joined_on, d.email, id],
+     weight_kg=$8, health_notes=$9, notes=$10, joined_on=$11, email=$12, auto_wa=$13 WHERE id=$14`,
+    [d.name, d.phone, d.gender, d.dob, d.address, d.emergency_contact, d.height_cm, d.weight_kg, d.health_notes, d.notes, d.joined_on, d.email, d.auto_wa, id],
   );
   refreshAll();
   redirect(`/members/${id}`);
@@ -391,4 +395,50 @@ export async function removeDemoData() {
   const { removeDemo } = await import("@/lib/seed");
   await removeDemo();
   refreshAll();
+}
+
+/* ---------------- Automatic WhatsApp reminders ---------------- */
+
+export async function saveReminderSettingsAction(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  const { saveReminderSettings } = await import("@/lib/reminders");
+  const p = z
+    .object({
+      enabled: z.string().optional().transform((v) => v === "1"),
+      expiring: z.string().optional().transform((v) => v === "1"),
+      expired: z.string().optional().transform((v) => v === "1"),
+      due: z.string().optional().transform((v) => v === "1"),
+      daysBefore: z.coerce.number().int().min(0).max(30),
+      daysAfter: z.coerce.number().int().min(1).max(60),
+      dueEvery: z.coerce.number().int().min(1).max(60),
+    })
+    .safeParse(Object.fromEntries(fd));
+  if (!p.success) return { error: firstError(p.error) };
+  await saveReminderSettings(p.data);
+  revalidatePath("/reminders");
+  return { ok: p.data.enabled ? "Saved. Reminders will go out every morning (10–11 am)." : "Saved. Automatic reminders are off." };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function runRemindersNow(_: FormState, _fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  const { runReminders } = await import("@/lib/reminders");
+  const r = await runReminders({ force: true });
+  revalidatePath("/reminders");
+  if (!r.connected) return { ok: `${r.planned} reminder(s) due today. Not sent — WhatsApp isn't connected yet.` };
+  return { ok: `Done: ${r.sent} sent, ${r.failed} failed (of ${r.planned} due today).` };
+}
+
+export async function sendTestReminder(_: FormState, fd: FormData): Promise<FormState> {
+  await requireAdmin();
+  const { TEMPLATES } = await import("@/lib/reminders");
+  const { sendTemplate, whatsappConfigured } = await import("@/lib/whatsapp");
+  const { getGymInfo } = await import("@/lib/data");
+  if (!whatsappConfigured()) return { error: "WhatsApp isn't connected yet (see setup steps below)." };
+  const phone = normalizePhone(String(fd.get("phone") || ""));
+  if (phone.length < 10) return { error: "Enter a valid phone number." };
+  const g = await getGymInfo();
+  const t = TEMPLATES.expiring;
+  const r = await sendTemplate(phone, t.name, ["Test", g.name, "One Month", "31 Dec 2026", g.phone || "-"]);
+  return r.ok ? { ok: `Test message sent to ${phone}.` } : { error: `WhatsApp error — ${r.error}` };
 }
