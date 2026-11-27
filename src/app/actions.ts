@@ -85,24 +85,19 @@ export async function logoutEverywhere() {
 }
 
 export async function updateProfile(_: FormState, fd: FormData): Promise<FormState> {
-  const admin = await requireAdmin();
+  await requireAdmin();
   const parsed = z
     .object({
-      gym_name: z.string().trim().min(1, "Required").max(80),
       gym_address: z.string().trim().max(200).default(""),
       gym_phone: z.string().trim().max(20).default(""),
-      email: z.string().trim().toLowerCase().pipe(z.email("Invalid email")),
     })
     .safeParse(Object.fromEntries(fd));
   if (!parsed.success) return { error: firstError(parsed.error) };
-  const { gym_name, gym_address, gym_phone, email } = parsed.data;
-  const clash = await one("SELECT id FROM admins WHERE email=$1 AND id<>$2", [email, admin.id]);
-  if (clash) return { error: "That email is already used by another admin." };
-  await query("UPDATE admins SET email=$1 WHERE id=$2", [email, admin.id]);
+  const { gym_address, gym_phone } = parsed.data;
   await query(
-    `INSERT INTO settings (key,value) VALUES ('gym_name',$1), ('gym_address',$2), ('gym_phone',$3)
+    `INSERT INTO settings (key,value) VALUES ('gym_address',$1), ('gym_phone',$2)
      ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`,
-    [gym_name, gym_address, gym_phone],
+    [gym_address, gym_phone],
   );
   refreshAll();
   return { ok: "Saved." };

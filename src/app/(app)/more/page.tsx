@@ -5,7 +5,7 @@ import { requireAdmin } from "@/lib/auth";
 import { getGymInfo } from "@/lib/data";
 import { SimpleForm } from "@/components/forms";
 import { ConfirmForm } from "@/components/client";
-import { Icon, PageHeader } from "@/components/ui";
+import { Icon } from "@/components/ui";
 
 export const metadata = { title: "More" };
 
@@ -25,7 +25,10 @@ export default async function MorePage() {
   ]);
   return (
     <div className="space-y-6">
-      <PageHeader title="More" subtitle={admin.email} />
+      <header>
+        <h1 className="text-[26px] font-bold leading-tight">Hi {admin.name.split(" ")[0]} 👋</h1>
+        <p className="text-sm text-muted mt-0.5">{gym.name} · Admin</p>
+      </header>
       <div className="card divide-y divide-line">
         {links.map((l) =>
           l.download ? (
@@ -52,20 +55,12 @@ export default async function MorePage() {
         <h2 className="section-title mb-3">Gym details</h2>
         <SimpleForm action={updateProfile} submit="Save" resetOnSuccess={false}>
           <div>
-            <label className="label" htmlFor="gym_name">Gym name</label>
-            <input id="gym_name" name="gym_name" defaultValue={gym.name} required className="input" />
-          </div>
-          <div>
             <label className="label" htmlFor="gym_address">Gym address</label>
             <input id="gym_address" name="gym_address" defaultValue={gym.address} className="input" />
           </div>
           <div>
             <label className="label" htmlFor="gym_phone">Gym phone (shown in WhatsApp messages)</label>
             <input id="gym_phone" name="gym_phone" type="tel" defaultValue={gym.phone} className="input tnum" />
-          </div>
-          <div>
-            <label className="label" htmlFor="aemail">Login email</label>
-            <input id="aemail" name="email" type="email" defaultValue={admin.email} required className="input" />
           </div>
         </SimpleForm>
       </section>

@@ -207,6 +207,8 @@ async function syncAdminFromEnv(d: Driver) {
     await saveFp();
     return;
   }
+  const envName = process.env.ADMIN_NAME?.trim();
+  if (envName) await d.query("UPDATE admins SET name=$1 WHERE id=$2 AND name IS DISTINCT FROM $1", [envName, rows[0].id]);
   if (!fingerprint) return;
   const cur = await d.query<{ value: string }>("SELECT value FROM settings WHERE key='admin_env_fp'");
   if (cur.rows[0]?.value === fingerprint) return;
