@@ -19,8 +19,13 @@ export function waNumber(phone: string): string {
   return d;
 }
 
+/**
+ * Opens WhatsApp with the message ready to send.
+ * Uses api.whatsapp.com/send rather than the wa.me short link: wa.me's redirect corrupts
+ * multi-byte characters on some phones/desktop apps (they arrive as "�").
+ */
 export function waLink(phone: string, text: string): string {
-  return `https://wa.me/${waNumber(phone)}?text=${encodeURIComponent(text)}`;
+  return `https://api.whatsapp.com/send?phone=${waNumber(phone)}&text=${encodeURIComponent(text)}`;
 }
 
 export function telLink(phone: string): string {
@@ -28,43 +33,138 @@ export function telLink(phone: string): string {
 }
 
 export type Gym = { name: string; address?: string; phone?: string };
+
+// Messages use WhatsApp formatting (*bold*) and plain characters only — no emoji — so they
+// look the same on every phone and WhatsApp version.
+const first = (name: string) => name.trim().split(/\s+/)[0] || name;
 const sig = (g: Gym) =>
-  `\n\n— ${g.name}${g.address ? `, ${g.address}` : ""}${g.phone ? `\n📞 ${g.phone}` : ""}`;
+  ["", "", `*${g.name}*`, g.address || "", g.phone ? `Call: ${g.phone}` : ""].filter((l, i) => i < 3 || l).join("\n");
+const lines = (...l: (string | false | null | undefined)[]) => l.filter((x) => x !== false && x != null).join("\n");
 
 type Ctx = { gym: Gym; name: string; endDate: string | null; daysLeft: number | null; due: number; plan?: string | null };
 
 export function reminderMessage(c: Ctx): string {
-  return reminderBody(c) + sig(c.gym);
-}
-
-function reminderBody(c: Ctx): string {
-  const gymName = c.gym.name;
-  const first = c.name.split(" ")[0];
+  const plan = c.plan ? `*${c.plan}* ` : "";
+  const due = c.due > 0 ? `\nPending balance: *${rupees(c.due)}*` : "";
   if (c.daysLeft === null || !c.endDate) {
-    return `Hi ${first}, this is ${gymName}. We'd love to see you back! Reply to know our current membership plans. 💪`;
+    return lines(
+      `Hi ${first(c.name)},`,
+      "",
+      `We miss you at *${c.gym.name}*! Come back and restart your fitness journey with us.`,
+      "",
+      "Reply to this message or visit the front desk to know our membership plans.",
+    ) + sig(c.gym);
   }
-  const dueLine = c.due > 0 ? ` You also have a pending balance of ${rupees(c.due)}.` : "";
   if (c.daysLeft < 0) {
-    return `Hi ${first}, your ${gymName} membership expired on ${fmtDate(c.endDate)}.${dueLine} Renew today to continue your training. 💪`;
+    return lines(
+      `Hi ${first(c.name)},`,
+      "",
+      `Your ${plan}membership at *${c.gym.name}* expired on *${fmtDate(c.endDate)}*.${due}`,
+      "",
+      "Renew today to get back on track. You can renew at the front desk or pay via UPI.",
+      "",
+      "Thank you!",
+    ) + sig(c.gym);
   }
-  if (c.daysLeft === 0) {
-    return `Hi ${first}, your ${gymName} membership expires today (${fmtDate(c.endDate)}).${dueLine} Please renew to avoid a break in your workouts. 💪`;
-  }
-  return `Hi ${first}, a reminder from ${gymName}: your membership${c.plan ? ` (${c.plan})` : ""} expires on ${fmtDate(c.endDate)} — ${c.daysLeft} day${c.daysLeft === 1 ? "" : "s"} left.${dueLine} Renew early to keep going! 💪`;
+  const when =
+    c.daysLeft === 0
+      ? `expires *today* (${fmtDate(c.endDate)})`
+      : `expires on *${fmtDate(c.endDate)}* (${c.daysLeft} day${c.daysLeft === 1 ? "" : "s"} left)`;
+  return lines(
+    `Hi ${first(c.name)},`,
+    "",
+    `This is a friendly reminder from *${c.gym.name}*.`,
+    "",
+    `Your ${plan}membership ${when}.${due}`,
+    "",
+    "Please renew on time to keep your training going without a break. You can renew at the front desk or pay via UPI.",
+    "",
+    "Thank you!",
+  ) + sig(c.gym);
 }
 
 export function dueMessage(gym: Gym, name: string, due: number): string {
-  return `Hi ${name.split(" ")[0]}, this is a gentle reminder from ${gym.name} that ${rupees(due)} is pending on your membership. You can pay at the front desk or via UPI. Thank you!${sig(gym)}`;
+  return lines(
+    `Hi ${first(name)},`,
+    "",
+    `This is a gentle reminder from *${gym.name}* that *${rupees(due)}* is pending on your membership.`,
+    "",
+    "Please clear it at the front desk or via UPI at your earliest convenience.",
+    "",
+    "Thank you!",
+  ) + sig(gym);
 }
 
-export function receiptMessage(gym: Gym, name: string, amount: number, date: string, endDate: string | null): string {
-  return `Hi ${name.split(" ")[0]}, we received ${rupees(amount)} on ${fmtDate(date)} at ${gym.name}.${
-    endDate ? ` Your membership is valid till ${fmtDate(endDate)}.` : ""
-  } Thank you! 🙏${sig(gym)}`;
+const METHOD: Record<string, string> = { cash: "Cash", upi: "UPI", card: "Card", bank: "Bank transfer", other: "Other" };
+
+export function receiptMessage(
+  gym: Gym,
+  name: string,
+  amount: number,
+  date: string,
+  endDate: string | null,
+  extra: { method?: string; balance?: number } = {},
+): string {
+  return lines(
+    `Hi ${first(name)},`,
+    "",
+    `Thank you for your payment at *${gym.name}*.`,
+    "",
+    `*Amount:* ${rupees(amount)}`,
+    `*Date:* ${fmtDate(date)}`,
+    extra.method && METHOD[extra.method] ? `*Mode:* ${METHOD[extra.method]}` : false,
+    endDate ? `*Valid till:* ${fmtDate(endDate)}` : false,
+    extra.balance && extra.balance > 0 ? `*Balance due:* ${rupees(extra.balance)}` : false,
+    "",
+    "Keep up the great work!",
+  ) + sig(gym);
 }
 
 export function birthdayMessage(gym: Gym, name: string): string {
-  return `Happy Birthday ${name.split(" ")[0]}! 🎉 Wishing you a strong and healthy year ahead. — Team ${gym.name}`;
+  return lines(
+    `Happy Birthday, ${first(name)}!`,
+    "",
+    "Wishing you a strong, healthy and happy year ahead. Have a great day!",
+    "",
+    `- Team *${gym.name}*`,
+  );
+}
+
+type Sub = { plan: string; start: string; end: string; paid: number; balance: number };
+
+export function welcomeMessage(gym: Gym, name: string, x: Sub): string {
+  return lines(
+    `Hi ${first(name)},`,
+    "",
+    `*Welcome to ${gym.name}!* We're glad to have you with us.`,
+    "",
+    `*Plan:* ${x.plan}`,
+    `*Valid:* ${fmtDate(x.start)} to ${fmtDate(x.end)}`,
+    `*Paid:* ${rupees(x.paid)}`,
+    x.balance > 0 ? `*Balance due:* ${rupees(x.balance)}` : false,
+    "",
+    "A few things to remember:",
+    "• Wear proper gym clothes and shoes",
+    "• Use the equipment with care",
+    "• Membership is non-transferable and non-refundable",
+    "",
+    "See you at the gym!",
+  ) + sig(gym);
+}
+
+export function renewalMessage(gym: Gym, name: string, x: Sub): string {
+  return lines(
+    `Hi ${first(name)},`,
+    "",
+    `Your *${gym.name}* membership has been renewed. Thank you for staying with us!`,
+    "",
+    `*Plan:* ${x.plan}`,
+    `*Valid till:* ${fmtDate(x.end)}`,
+    `*Paid:* ${rupees(x.paid)}`,
+    x.balance > 0 ? `*Balance due:* ${rupees(x.balance)}` : false,
+    "",
+    "Keep up the great work!",
+  ) + sig(gym);
 }
 
 /** Digits to search with: "+91 98111" → "98111", "0981" → "981". Empty if the query isn't a number. */
@@ -76,15 +176,4 @@ export function phoneQuery(raw: string): string {
   else if (d.startsWith("00" + CC)) d = d.slice(2 + CC.length);
   else if (d.startsWith("0")) d = d.slice(1);
   return d;
-}
-
-type Sub = { plan: string; start: string; end: string; paid: number; balance: number };
-const money = (x: Sub) => `Paid: ${rupees(x.paid)}.${x.balance > 0 ? ` Balance due: ${rupees(x.balance)}.` : ""}`;
-
-export function welcomeMessage(gym: Gym, name: string, x: Sub): string {
-  return `Welcome to ${gym.name}, ${name.split(" ")[0]}! 💪 Your ${x.plan} membership is active from ${fmtDate(x.start)} to ${fmtDate(x.end)}. ${money(x)} See you at the gym!${sig(gym)}`;
-}
-
-export function renewalMessage(gym: Gym, name: string, x: Sub): string {
-  return `Hi ${name.split(" ")[0]}, your ${gym.name} membership (${x.plan}) has been renewed till ${fmtDate(x.end)}. ${money(x)} Thank you! 🙏${sig(gym)}`;
 }

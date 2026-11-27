@@ -95,7 +95,7 @@ export default async function RemindersPage() {
                   <span className="flex-1 font-semibold truncate">{p.member.name}</span>
                   <span className="chip bg-surface-2 border border-line text-ink">{KIND_LABEL[p.kind]}</span>
                 </summary>
-                <p className="mt-2 text-[13px] text-ink/80 rounded-lg bg-surface-2 p-2.5">{renderTemplate(p.kind as ReminderKind, p.member, gym)}</p>
+                <p className="mt-2 text-[13px] text-ink/80 rounded-lg bg-surface-2 p-2.5 whitespace-pre-line">{renderTemplate(p.kind as ReminderKind, p.member, gym)}</p>
               </details>
             ))}
             {plan.length > 25 && <div className="p-3 text-center text-sm text-muted">+{plan.length - 25} more</div>}
@@ -169,7 +169,7 @@ export default async function RemindersPage() {
                 <code className="text-[13px] font-semibold">{TEMPLATES[k].name}</code>
                 <CopyButton text={TEMPLATES[k].name} label="Copy name" />
               </div>
-              <p className="text-[13px] text-ink/80 mt-2 select-all">{TEMPLATES[k].body}</p>
+              <p className="text-[13px] text-ink/80 mt-2 select-all whitespace-pre-line">{TEMPLATES[k].body}</p>
               <div className="mt-2">
                 <CopyButton text={TEMPLATES[k].body} label="Copy text" />
               </div>

@@ -13,21 +13,21 @@ export const TEMPLATES = {
     name: "membership_expiring",
     label: "Membership expiring",
     body:
-      "Hi {{1}}, your {{2}} membership ({{3}}) is valid till {{4}}. Please renew on time to continue your workouts without a break. For any help, call us on {{5}}. Thank you!",
+      "Hi {{1}},\n\nThis is a friendly reminder from *{{2}}*.\n\nYour *{{3}}* membership is valid till *{{4}}*. Please renew on time to keep your training going without a break. You can renew at the front desk or pay via UPI.\n\nFor any help, call us on {{5}}.\n\nThank you!",
     params: (m: MemberSummary, g: GymInfo) => [first(m.name), g.name, m.plan_name ?? "membership", fmtDate(m.end_date), g.phone || "-"],
   },
   expired: {
     name: "membership_expired",
     label: "Membership expired",
     body:
-      "Hi {{1}}, your {{2}} membership expired on {{3}}. Renew today to get back on track with your fitness. Visit us at {{4}} or call {{5}}. Thank you!",
+      "Hi {{1}},\n\nYour *{{2}}* membership expired on *{{3}}*. We miss you at the gym!\n\nRenew today to get back on track. Visit us at {{4}} or call {{5}}.\n\nThank you!",
     params: (m: MemberSummary, g: GymInfo) => [first(m.name), g.name, fmtDate(m.end_date), g.address || g.name, g.phone || "-"],
   },
   due: {
     name: "payment_due",
     label: "Payment due",
     body:
-      "Hi {{1}}, this is a reminder from {{2}} that Rs. {{3}} is pending on your membership. Please clear it at the front desk or via UPI. For any help, call us on {{4}}. Thank you!",
+      "Hi {{1}},\n\nThis is a gentle reminder from *{{2}}* that *Rs. {{3}}* is pending on your membership.\n\nPlease clear it at the front desk or via UPI at your earliest convenience. For any help, call us on {{4}}.\n\nThank you!",
     params: (m: MemberSummary, g: GymInfo) => [first(m.name), g.name, m.due.toLocaleString("en-IN"), g.phone || "-"],
   },
 } as const;

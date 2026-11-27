@@ -281,7 +281,7 @@ export async function recordPayment(memberId: number, _: FormState, fd: FormData
     [memberId, cur?.id ?? null, p.data.amount, p.data.method, p.data.paid_on, p.data.note],
   );
   refreshAll();
-  redirect(`/members/${memberId}?paid=${p.data.amount}&on=${p.data.paid_on}`);
+  redirect(`/members/${memberId}?paid=${p.data.amount}&on=${p.data.paid_on}&m=${p.data.method}`);
 }
 
 export async function deletePayment(memberId: number, paymentId: number) {

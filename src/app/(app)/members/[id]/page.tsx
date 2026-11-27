@@ -31,7 +31,7 @@ export default async function MemberPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ new?: string; renewed?: string; paid?: string; on?: string }>;
+  searchParams: Promise<{ new?: string; renewed?: string; paid?: string; on?: string; m?: string }>;
 }) {
   await requireAdmin();
   const id = Number((await params).id);
@@ -114,7 +114,10 @@ export default async function MemberPage({
             className="underline"
             target="_blank"
             rel="noreferrer"
-            href={waLink(m.phone, receiptMessage(gym, m.name, Number(sp.paid), sp.on && /^\d{4}-\d{2}-\d{2}$/.test(sp.on) ? sp.on : today, s.end_date))}
+            href={waLink(m.phone, receiptMessage(gym, m.name, Number(sp.paid), sp.on && /^\d{4}-\d{2}-\d{2}$/.test(sp.on) ? sp.on : today, s.end_date, {
+              method: sp.m,
+              balance: s.due,
+            }))}
           >
             Send receipt on WhatsApp
           </a>
