@@ -31,11 +31,9 @@ async function createDriver(): Promise<Driver> {
     // Keep DATE columns as 'YYYY-MM-DD' strings (no timezone shifting)
     pg.types.setTypeParser(1082, (v: string) => v);
     pg.types.setTypeParser(20, (v: string) => Number(v)); // bigint → number
-    const pool = new pg.Pool({
-      connectionString: url,
-      max: 5,
-      ssl: /sslmode=require|neon\.tech|supabase/.test(url) ? { rejectUnauthorized: false } : undefined,
-    });
+    // Hosted Postgres (Neon, Supabase…) uses publicly trusted certificates, so verify them fully.
+    const connectionString = url.replace(/sslmode=(require|prefer|verify-ca)/, "sslmode=verify-full");
+    const pool = new pg.Pool({ connectionString, max: 5 });
     const wrap = (c: { query: (sql: string, p?: unknown[]) => Promise<{ rows: unknown[] }> }): Omit<Driver, "locked"> => ({
       query: async <T extends Row>(sql: string, params?: unknown[]) => ({ rows: (await c.query(sql, params)).rows as T[] }),
       exec: (sql: string) => c.query(sql),
