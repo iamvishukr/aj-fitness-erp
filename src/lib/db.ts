@@ -19,7 +19,13 @@ interface Driver {
 const g = globalThis as unknown as { __gymDb?: Promise<Driver> };
 
 async function createDriver(): Promise<Driver> {
-  const url = process.env.DATABASE_URL;
+  // Vercel's Neon / Postgres integrations may expose the URL under either name
+  const url = process.env.DATABASE_URL || process.env.POSTGRES_URL;
+  if (!url && process.env.VERCEL) {
+    throw new Error(
+      "No database configured. In Vercel → Project → Storage, connect a Postgres (Neon) database, then redeploy.",
+    );
+  }
   if (url) {
     const pg = await import("pg");
     // Keep DATE columns as 'YYYY-MM-DD' strings (no timezone shifting)
