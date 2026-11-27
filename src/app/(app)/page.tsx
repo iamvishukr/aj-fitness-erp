@@ -12,7 +12,6 @@ import {
 import { addDays, fmtDate, monthStart, rupees, todayISO } from "@/lib/dates";
 import { birthdayMessage, reminderMessage, waLink } from "@/lib/contact";
 import { MemberRow } from "@/components/member-row";
-import { getSetting } from "@/lib/data";
 import { loadDemoData } from "@/app/actions";
 import { SubmitButton } from "@/components/client";
 import { Tabs } from "@/components/tabs";
@@ -39,7 +38,6 @@ export default async function Dashboard() {
     getMonthlyRevenue(6),
     getTodayCheckins(),
   ]);
-  const defaultPassword = (await getSetting("default_password")) === "1";
 
   const active = members.filter((m) => m.status === "active" || m.status === "expiring");
   const expiring = members.filter((m) => m.status === "expiring");
@@ -87,12 +85,6 @@ export default async function Dashboard() {
           {greeting()}, {admin.name.split(" ")[0]}
         </h1>
       </header>
-
-      {defaultPassword && (
-        <Link href="/more" className="block rounded-xl border border-bad/40 bg-bad/10 px-3.5 py-3 text-sm text-bad">
-          <b>Security:</b> you&apos;re still using the default password. Tap here to change it.
-        </Link>
-      )}
 
       <section className="grid grid-cols-2 gap-3">
         {stats.map((s) => (

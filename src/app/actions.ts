@@ -84,27 +84,6 @@ export async function logoutEverywhere() {
   redirect("/login");
 }
 
-export async function changePassword(_: FormState, fd: FormData): Promise<FormState> {
-  const admin = await requireAdmin();
-  const current = String(fd.get("current") || "");
-  const next = String(fd.get("next") || "");
-  const confirm = String(fd.get("confirm") || "");
-  if (next.length < 8) return { error: "New password must be at least 8 characters." };
-  if (next !== confirm) return { error: "New passwords don't match." };
-  const row = await one<{ password_hash: string; token_version: number }>(
-    "SELECT password_hash, token_version FROM admins WHERE id=$1",
-    [admin.id],
-  );
-  if (!row || !(await bcrypt.compare(current, row.password_hash))) return { error: "Current password is wrong." };
-  const hash = await bcrypt.hash(next, 10);
-  // Bump token version so other devices are signed out, then re-sign this device.
-  await query("UPDATE admins SET password_hash=$1, token_version=token_version+1 WHERE id=$2", [hash, admin.id]);
-  await query("DELETE FROM settings WHERE key='default_password'");
-  await createSession(admin.id, row.token_version + 1);
-  refreshAll();
-  return { ok: "Password updated. Other devices were signed out." };
-}
-
 export async function updateProfile(_: FormState, fd: FormData): Promise<FormState> {
   const admin = await requireAdmin();
   const parsed = z
@@ -112,15 +91,14 @@ export async function updateProfile(_: FormState, fd: FormData): Promise<FormSta
       gym_name: z.string().trim().min(1, "Required").max(80),
       gym_address: z.string().trim().max(200).default(""),
       gym_phone: z.string().trim().max(20).default(""),
-      name: z.string().trim().min(1, "Required").max(80),
       email: z.string().trim().toLowerCase().pipe(z.email("Invalid email")),
     })
     .safeParse(Object.fromEntries(fd));
   if (!parsed.success) return { error: firstError(parsed.error) };
-  const { gym_name, gym_address, gym_phone, name, email } = parsed.data;
+  const { gym_name, gym_address, gym_phone, email } = parsed.data;
   const clash = await one("SELECT id FROM admins WHERE email=$1 AND id<>$2", [email, admin.id]);
   if (clash) return { error: "That email is already used by another admin." };
-  await query("UPDATE admins SET name=$1, email=$2 WHERE id=$3", [name, email, admin.id]);
+  await query("UPDATE admins SET email=$1 WHERE id=$2", [email, admin.id]);
   await query(
     `INSERT INTO settings (key,value) VALUES ('gym_name',$1), ('gym_address',$2), ('gym_phone',$3)
      ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value`,

@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { changePassword, logout, logoutEverywhere, removeDemoData, updateProfile } from "@/app/actions";
+import { logout, logoutEverywhere, removeDemoData, updateProfile } from "@/app/actions";
 import { one } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { getGymInfo } from "@/lib/data";
@@ -49,7 +49,7 @@ export default async function MorePage() {
       </div>
 
       <section className="card p-4">
-        <h2 className="section-title mb-3">Gym & profile</h2>
+        <h2 className="section-title mb-3">Gym details</h2>
         <SimpleForm action={updateProfile} submit="Save" resetOnSuccess={false}>
           <div>
             <label className="label" htmlFor="gym_name">Gym name</label>
@@ -64,22 +64,9 @@ export default async function MorePage() {
             <input id="gym_phone" name="gym_phone" type="tel" defaultValue={gym.phone} className="input tnum" />
           </div>
           <div>
-            <label className="label" htmlFor="aname">Your name</label>
-            <input id="aname" name="name" defaultValue={admin.name} required className="input" />
-          </div>
-          <div>
             <label className="label" htmlFor="aemail">Login email</label>
             <input id="aemail" name="email" type="email" defaultValue={admin.email} required className="input" />
           </div>
-        </SimpleForm>
-      </section>
-
-      <section className="card p-4">
-        <h2 className="section-title mb-3">Change password</h2>
-        <SimpleForm action={changePassword} submit="Update password">
-          <input name="current" type="password" autoComplete="current-password" required placeholder="Current password" className="input" />
-          <input name="next" type="password" autoComplete="new-password" required minLength={8} placeholder="New password (min 8)" className="input" />
-          <input name="confirm" type="password" autoComplete="new-password" required placeholder="Confirm new password" className="input" />
         </SimpleForm>
       </section>
 
