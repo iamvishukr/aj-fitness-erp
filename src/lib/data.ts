@@ -104,6 +104,7 @@ export function getMemberships(memberId: number) {
 export type Payment = {
   id: number;
   member_id: number;
+  membership_id?: number | null;
   member_name?: string;
   amount: number;
   method: string;
@@ -112,7 +113,7 @@ export type Payment = {
 };
 export function getPaymentsForMember(memberId: number) {
   return query<Payment>(
-    "SELECT id, member_id, amount, method, paid_on, note FROM payments WHERE member_id=$1 ORDER BY paid_on DESC, id DESC",
+    "SELECT id, member_id, membership_id, amount, method, paid_on, note FROM payments WHERE member_id=$1 ORDER BY paid_on DESC, id DESC",
     [memberId],
   );
 }

@@ -77,3 +77,14 @@ export function phoneQuery(raw: string): string {
   else if (d.startsWith("0")) d = d.slice(1);
   return d;
 }
+
+type Sub = { plan: string; start: string; end: string; paid: number; balance: number };
+const money = (x: Sub) => `Paid: ${rupees(x.paid)}.${x.balance > 0 ? ` Balance due: ${rupees(x.balance)}.` : ""}`;
+
+export function welcomeMessage(gym: Gym, name: string, x: Sub): string {
+  return `Welcome to ${gym.name}, ${name.split(" ")[0]}! 💪 Your ${x.plan} membership is active from ${fmtDate(x.start)} to ${fmtDate(x.end)}. ${money(x)} See you at the gym!${sig(gym)}`;
+}
+
+export function renewalMessage(gym: Gym, name: string, x: Sub): string {
+  return `Hi ${name.split(" ")[0]}, your ${gym.name} membership (${x.plan}) has been renewed till ${fmtDate(x.end)}. ${money(x)} Thank you! 🙏${sig(gym)}`;
+}

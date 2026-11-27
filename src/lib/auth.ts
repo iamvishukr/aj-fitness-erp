@@ -84,17 +84,24 @@ export async function requireAdmin(): Promise<Admin> {
   return admin;
 }
 
-// --- very small in-memory login throttle (per email+ip) ---
-const attempts = new Map<string, { count: number; until: number }>();
-export function isThrottled(key: string): boolean {
-  const a = attempts.get(key);
-  return !!a && a.count >= 5 && a.until > Date.now();
+// --- login throttle, stored in the database so it holds across all server instances ---
+const MAX_ATTEMPTS = 5;
+const LOCK_MINUTES = 15;
+
+export async function isThrottled(key: string, max = MAX_ATTEMPTS): Promise<boolean> {
+  const r = await one<{ count: number }>("SELECT count FROM login_attempts WHERE key=$1 AND until > now()", [key]);
+  return !!r && r.count >= max;
 }
-export function recordFailure(key: string) {
-  const a = attempts.get(key);
-  if (!a || a.until < Date.now()) attempts.set(key, { count: 1, until: Date.now() + 15 * 60_000 });
-  else a.count++;
+export async function recordFailure(key: string) {
+  await query(
+    `INSERT INTO login_attempts (key, count, until) VALUES ($1, 1, now() + make_interval(mins => $2))
+     ON CONFLICT (key) DO UPDATE SET
+       count = CASE WHEN login_attempts.until < now() THEN 1 ELSE login_attempts.count + 1 END,
+       until = CASE WHEN login_attempts.until < now() THEN EXCLUDED.until ELSE login_attempts.until END`,
+    [key, LOCK_MINUTES],
+  );
+  await query("DELETE FROM login_attempts WHERE until < now() - interval '1 day'");
 }
-export function clearFailures(key: string) {
-  attempts.delete(key);
+export async function clearFailures(key: string) {
+  await query("DELETE FROM login_attempts WHERE key=$1", [key]);
 }

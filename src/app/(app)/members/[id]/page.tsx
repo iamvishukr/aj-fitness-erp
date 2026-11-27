@@ -13,7 +13,7 @@ import {
   getRecentVisits,
 } from "@/lib/data";
 import { diffDays, fmtDate, fmtShort, relativeDays, rupees, todayISO } from "@/lib/dates";
-import { dueMessage, receiptMessage, reminderMessage, telLink, waLink } from "@/lib/contact";
+import { dueMessage, receiptMessage, reminderMessage, renewalMessage, telLink, waLink, welcomeMessage } from "@/lib/contact";
 import { ConfirmForm, SubmitButton } from "@/components/client";
 import { Avatar, Icon, Notice, PageHeader, StatusBadge } from "@/components/ui";
 
@@ -31,7 +31,7 @@ export default async function MemberPage({
   searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ new?: string; renewed?: string; paid?: string }>;
+  searchParams: Promise<{ new?: string; renewed?: string; paid?: string; on?: string }>;
 }) {
   await requireAdmin();
   const id = Number((await params).id);
@@ -49,6 +49,19 @@ export default async function MemberPage({
   if (!m || !s) notFound();
   const today = todayISO();
   const cur = memberships[0];
+  // For the welcome / renewal message: the newest membership and what was paid against it
+  const sub = cur
+    ? (() => {
+        const paidNow = payments.filter((p) => p.membership_id === cur.id).reduce((a, p) => a + p.amount, 0);
+        return {
+          plan: cur.plan_name,
+          start: cur.start_date,
+          end: cur.end_date,
+          paid: paidNow,
+          balance: Math.max(0, s.due),
+        };
+      })()
+    : null;
   const total = cur ? diffDays(cur.start_date, cur.end_date) + 1 : 0;
   const used = cur ? Math.min(total, Math.max(0, diffDays(cur.start_date, today) + 1)) : 0;
   const pct = total ? Math.round((used / total) * 100) : 0;
@@ -74,8 +87,26 @@ export default async function MemberPage({
           </Link>
         }
       />
-      {sp.new && <Notice>Member added successfully.</Notice>}
-      {sp.renewed && <Notice>Membership renewed. Valid till {fmtDate(s.end_date)}.</Notice>}
+      {sp.new && (
+        <Notice>
+          Member added successfully.{" "}
+          {sub && (
+            <a className="underline" target="_blank" rel="noreferrer" href={waLink(m.phone, welcomeMessage(gym, m.name, sub))}>
+              Send welcome message on WhatsApp
+            </a>
+          )}
+        </Notice>
+      )}
+      {sp.renewed && (
+        <Notice>
+          Membership renewed. Valid till {fmtDate(s.end_date)}.{" "}
+          {sub && (
+            <a className="underline" target="_blank" rel="noreferrer" href={waLink(m.phone, renewalMessage(gym, m.name, sub))}>
+              Send receipt on WhatsApp
+            </a>
+          )}
+        </Notice>
+      )}
       {sp.paid && (
         <Notice>
           Payment of {rupees(Number(sp.paid))} saved.{" "}
@@ -83,7 +114,7 @@ export default async function MemberPage({
             className="underline"
             target="_blank"
             rel="noreferrer"
-            href={waLink(m.phone, receiptMessage(gym, m.name, Number(sp.paid), today, s.end_date))}
+            href={waLink(m.phone, receiptMessage(gym, m.name, Number(sp.paid), sp.on && /^\d{4}-\d{2}-\d{2}$/.test(sp.on) ? sp.on : today, s.end_date))}
           >
             Send receipt on WhatsApp
           </a>

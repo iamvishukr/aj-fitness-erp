@@ -56,7 +56,11 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   const password = String(fd.get("password") || "");
   const ip = (await headers()).get("x-forwarded-for")?.split(",")[0] ?? "local";
   const key = `${email}|${ip}`;
-  if (isThrottled(key)) return { error: "Too many attempts. Try again in 15 minutes." };
+  // 5 wrong tries per device/IP, 20 per account from anywhere (caps guessing without letting
+  // a stranger lock the owner out with just a few attempts)
+  const acctKey = `acct|${email}`;
+  if ((await isThrottled(key)) || (await isThrottled(acctKey, 20)))
+    return { error: "Too many wrong attempts. Try again in 15 minutes." };
 
   const admin = await one<{ id: number; password_hash: string; token_version: number }>(
     "SELECT id, password_hash, token_version FROM admins WHERE email=$1",
@@ -64,10 +68,12 @@ export async function login(_: FormState, fd: FormData): Promise<FormState> {
   );
   const ok = admin ? await bcrypt.compare(password, admin.password_hash) : false;
   if (!admin || !ok) {
-    recordFailure(key);
+    await recordFailure(key);
+    await recordFailure(acctKey);
     return { error: "Wrong email or password." };
   }
-  clearFailures(key);
+  await clearFailures(key);
+  await clearFailures(acctKey);
   await createSession(admin.id, admin.token_version);
   redirect("/");
 }
@@ -275,7 +281,7 @@ export async function recordPayment(memberId: number, _: FormState, fd: FormData
     [memberId, cur?.id ?? null, p.data.amount, p.data.method, p.data.paid_on, p.data.note],
   );
   refreshAll();
-  redirect(`/members/${memberId}?paid=${p.data.amount}`);
+  redirect(`/members/${memberId}?paid=${p.data.amount}&on=${p.data.paid_on}`);
 }
 
 export async function deletePayment(memberId: number, paymentId: number) {

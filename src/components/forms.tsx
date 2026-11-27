@@ -76,6 +76,18 @@ export function MethodPicker({ name = "method", defaultValue = "cash" }: { name?
   );
 }
 
+/** Selecting the whole value on focus lets you type over it straight away. */
+const selectAll = (e: React.FocusEvent<HTMLInputElement>) => {
+  const el = e.currentTarget;
+  requestAnimationFrame(() => {
+    try {
+      el.select();
+    } catch {
+      /* some mobile keyboards don't support selection on number inputs */
+    }
+  });
+};
+
 export function SubscriptionFields({
   plans,
   defaultStart,
@@ -90,11 +102,17 @@ export function SubscriptionFields({
   );
   const plan = plans.find((p) => p.id === planId);
   const [start, setStart] = useState(defaultStart);
-  const [fee, setFee] = useState<number>(plan?.price ?? 0);
-  const [discount, setDiscount] = useState(0);
-  const [paid, setPaid] = useState<number>(plan?.price ?? 0);
+  // Kept as text so a field can be emptied with backspace; empty counts as 0
+  const [fee, setFee] = useState(String(plan?.price ?? ""));
+  const [discount, setDiscount] = useState("");
+  const [paid, setPaid] = useState(String(plan?.price ?? ""));
   const [paidTouched, setPaidTouched] = useState(false);
-  const total = Math.max(0, fee - discount);
+  const num = (v: string) => Math.max(0, Math.round(Number(v) || 0));
+  const total = Math.max(0, num(fee) - num(discount));
+  const paidNum = num(paid);
+  const autoPaid = (f: string, d: string) => {
+    if (!paidTouched) setPaid(String(Math.max(0, num(f) - num(d))));
+  };
   const end = useMemo(() => (plan && start ? planEndDate(start, plan) : ""), [plan, start]);
 
   if (plans.length === 0)
@@ -112,8 +130,8 @@ export function SubscriptionFields({
               key={p.id}
               onClick={() => {
                 setPlanId(p.id);
-                setFee(p.price);
-                if (!paidTouched) setPaid(Math.max(0, p.price - discount));
+                setFee(String(p.price));
+                autoPaid(String(p.price), discount);
               }}
               className={`rounded-xl border p-3 text-left ${
                 p.id === planId ? "border-accent bg-accent/10" : "border-line bg-surface-2"
@@ -146,10 +164,10 @@ export function SubscriptionFields({
             min={0}
             required
             value={fee}
+            onFocus={selectAll}
             onChange={(e) => {
-              const v = Number(e.target.value || 0);
-              setFee(v);
-              if (!paidTouched) setPaid(Math.max(0, v - discount));
+              setFee(e.target.value);
+              autoPaid(e.target.value, discount);
             }}
             className="input tnum"
           />
@@ -163,10 +181,11 @@ export function SubscriptionFields({
             inputMode="numeric"
             min={0}
             value={discount}
+            placeholder="0"
+            onFocus={selectAll}
             onChange={(e) => {
-              const v = Number(e.target.value || 0);
-              setDiscount(v);
-              if (!paidTouched) setPaid(Math.max(0, fee - v));
+              setDiscount(e.target.value);
+              autoPaid(fee, e.target.value);
             }}
             className="input tnum"
           />
@@ -186,15 +205,18 @@ export function SubscriptionFields({
             inputMode="numeric"
             min={0}
             value={paid}
+            placeholder="0"
+            onFocus={selectAll}
             onChange={(e) => {
               setPaidTouched(true);
-              setPaid(Number(e.target.value || 0));
+              setPaid(e.target.value);
             }}
             className="input tnum"
           />
         </div>
-        {paid < total && <div className="text-[13px] text-warn tnum">Balance due: {inr(total - paid)}</div>}
-        {paid > total && <div className="text-[13px] text-ok tnum">Advance: {inr(paid - total)} (kept as credit)</div>}
+        {num(discount) > num(fee) && <div className="text-[13px] text-bad">Discount can&apos;t be more than the fee.</div>}
+        {paidNum < total && <div className="text-[13px] text-warn tnum">Balance due: {inr(total - paidNum)}</div>}
+        {paidNum > total && <div className="text-[13px] text-ok tnum">Advance: {inr(paidNum - total)} (kept as credit)</div>}
         <MethodPicker />
       </div>
     </div>
